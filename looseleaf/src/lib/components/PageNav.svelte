@@ -2,7 +2,7 @@
 	import { PanelLeftClose, PanelLeftOpen } from "@lucide/svelte";
 	import { Button } from "$lib/components/ui/button";
 	import { cn } from "$lib/utils";
-	import { views, zine } from "$lib/zine.svelte";
+	import { imageCount, views, zine } from "$lib/zine.svelte";
 </script>
 
 <nav
@@ -45,13 +45,23 @@
 					{#each view as i, n (i)}
 						<span
 							class={cn(
-								"flex aspect-[3/4] w-10 items-center justify-center overflow-hidden",
+								"flex aspect-[3/4] w-10 flex-col overflow-hidden",
+								imageCount(zine.pages[i]) > 1 && "gap-px bg-border",
 								n > 0 && "border-l border-dashed border-border"
 							)}
 						>
-							{#if zine.pages[i].imageUrl}
-								<img src={zine.pages[i].imageUrl} alt="" class="size-full object-cover" />
-							{/if}
+							{#each zine.pages[i].images as slot, s (s)}
+								{#if slot.imageUrl}
+									<span class="flex min-h-0 flex-1 items-center justify-center overflow-hidden bg-muted">
+										<img
+											src={slot.imageUrl}
+											alt=""
+											class={cn("size-full", slot.mode === "fill" ? "object-cover" : "object-contain")}
+											style="object-position: {slot.offsetX}% {slot.offsetY}%"
+										/>
+									</span>
+								{/if}
+							{/each}
 						</span>
 					{/each}
 				</span>

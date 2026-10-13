@@ -11,5 +11,5 @@
 	<div class="col-span-2"><Header /></div>
 	<PageNav />
 	<PageViewer bind:this={viewer} />
-	<div class="col-span-2"><SettingsPane onChooseFile={() => viewer.chooseFile()} /></div>
+	<div class="col-span-2"><SettingsPane onChooseFile={(page, slot) => viewer.chooseFile(page, slot)} /></div>
 </div>

@@ -1,39 +1,43 @@
 <script lang="ts">
 	import { Button } from "$lib/components/ui/button";
 	import { cn } from "$lib/utils";
-	import { views, zine } from "$lib/zine.svelte";
+	import { ASPECTS, imageCount, views, zine } from "$lib/zine.svelte";
 
 	const view = $derived(views[zine.viewIndex]);
 	const spread = $derived(view.length > 1);
 
 	let fileInput = $state<HTMLInputElement | null>(null);
+	let target = { page: 0, slot: 0 };
 	let dragOver = $state<number | null>(null);
 	let drag: { x: number; y: number; ox: number; oy: number } | null = null;
 
-	export function chooseFile() {
+	export function chooseFile(page = zine.selectedIndex, slot = 0) {
+		target = { page, slot };
 		fileInput?.click();
 	}
 
-	function onFiles(files: FileList | null | undefined, index = zine.selectedIndex) {
-		const file = files?.[0];
-		if (file) zine.setImage(index, file);
-	}
-
-	function onDrop(e: DragEvent, index: number) {
+	function onDrop(e: DragEvent, page: number, slot: number) {
 		e.preventDefault();
 		dragOver = null;
-		zine.selectedIndex = index;
-		onFiles(e.dataTransfer?.files, index);
+		zine.selectedIndex = page;
+		const file = e.dataTransfer?.files?.[0];
+		if (file) zine.addImage(page, file, slot);
 	}
 
-	function onPointerDown(e: PointerEvent, index: number) {
-		const page = zine.pages[index];
-		if (page.mode !== "fill") return;
+	function frameStyle(aspect: keyof typeof ASPECTS): string {
+		const r = ASPECTS[aspect];
+		if (!r) return "width: 100%; height: 100%";
+		return `aspect-ratio: ${r}; width: min(100cqw, ${r * 100}cqh)`;
+	}
+
+	function onPointerDown(e: PointerEvent, page: number, slot: number) {
+		const s = zine.pages[page].images[slot];
+		if (s.mode !== "fill") return;
 		(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-		drag = { x: e.clientX, y: e.clientY, ox: page.offsetX, oy: page.offsetY };
+		drag = { x: e.clientX, y: e.clientY, ox: s.offsetX, oy: s.offsetY };
 	}
 
-	function onPointerMove(e: PointerEvent, index: number) {
+	function onPointerMove(e: PointerEvent, page: number, slot: number) {
 		const img = e.currentTarget as HTMLImageElement;
 		const frame = img.parentElement;
 		if (!drag || !frame || !img.naturalWidth) return;
@@ -45,7 +49,7 @@
 		const overflowY = img.naturalHeight * scale - fh;
 		const clamp = (v: number) => Math.min(100, Math.max(0, v));
 		// object-position p% shifts the image by -p% of overflow, so dragging right lowers p.
-		zine.update(index, {
+		zine.updateSlot(page, slot, {
 			offsetX: overflowX > 0 ? clamp(drag.ox - ((e.clientX - drag.x) / overflowX) * 100) : 50,
 			offsetY: overflowY > 0 ? clamp(drag.oy - ((e.clientY - drag.y) / overflowY) * 100) : 50,
 		});
@@ -63,7 +67,11 @@
 		accept="image/*"
 		class="hidden"
 		onchange={(e) => {
-			onFiles(e.currentTarget.files);
+			const file = e.currentTarget.files?.[0];
+			if (file) {
+				zine.selectedIndex = target.page;
+				zine.setImage(target.page, target.slot, file);
+			}
 			e.currentTarget.value = "";
 		}}
 	/>
@@ -79,10 +87,12 @@
 			>
 				{#each view as index, n (index)}
 					{@const page = zine.pages[index]}
+					{@const count = imageCount(page)}
 					<!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
 					<div
 						class={cn(
-							"relative min-w-0 flex-1",
+							"relative flex min-w-0 flex-1 flex-col",
+							count > 1 && "gap-2 p-2",
 							n > 0 && "border-l-2 border-dashed border-border",
 							spread && index === zine.selectedIndex && "outline-4 -outline-offset-4 outline-primary",
 							dragOver === index && "bg-primary/30"
@@ -94,35 +104,55 @@
 							dragOver = index;
 						}}
 						ondragleave={() => (dragOver = null)}
-						ondrop={(e) => onDrop(e, index)}
+						ondrop={(e) => onDrop(e, index, 0)}
 					>
-						{#if page.imageUrl}
-							<img
-								src={page.imageUrl}
-								alt={page.caption || page.label}
-								draggable="false"
-								class={cn(
-									"size-full select-none",
-									page.mode === "fill" ? "cursor-grab touch-none object-cover active:cursor-grabbing" : "object-contain"
-								)}
-								style="object-position: {page.offsetX}% {page.offsetY}%"
-								onpointerdown={(e) => onPointerDown(e, index)}
-								onpointermove={(e) => onPointerMove(e, index)}
-								onpointerup={onPointerUp}
-								onpointercancel={onPointerUp}
-							/>
-						{:else}
+						{#if count === 0}
 							<div class="flex size-full flex-col items-center justify-center gap-3 p-4 text-center">
 								<p class="font-head">Drop an image here</p>
 								<Button
 									size="sm"
 									onclick={(e) => {
 										e.stopPropagation();
-										zine.selectedIndex = index;
-										chooseFile();
+										chooseFile(index, 0);
 									}}>Choose file</Button
 								>
 							</div>
+						{:else}
+							{#each page.images as slot, s (s)}
+								{#if slot.imageUrl}
+									<div
+										class="flex min-h-0 flex-1 items-center justify-center"
+										style="container-type: size"
+										ondragover={(e) => e.stopPropagation()}
+										ondrop={(e) => {
+											e.stopPropagation();
+											onDrop(e, index, s);
+										}}
+									>
+										<div
+											class={cn("relative overflow-hidden", slot.aspect !== "auto" && "outline outline-1 outline-border/40")}
+											style={frameStyle(slot.aspect)}
+										>
+											<img
+												src={slot.imageUrl}
+												alt={page.caption || `${page.label} image ${s + 1}`}
+												draggable="false"
+												class={cn(
+													"size-full select-none",
+													slot.mode === "fill"
+														? "cursor-grab touch-none object-cover active:cursor-grabbing"
+														: "object-contain"
+												)}
+												style="object-position: {slot.offsetX}% {slot.offsetY}%"
+												onpointerdown={(e) => onPointerDown(e, index, s)}
+												onpointermove={(e) => onPointerMove(e, index, s)}
+												onpointerup={onPointerUp}
+												onpointercancel={onPointerUp}
+											/>
+										</div>
+									</div>
+								{/if}
+							{/each}
 						{/if}
 					</div>
 				{/each}
