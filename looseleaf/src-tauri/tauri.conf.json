@@ -12,9 +12,9 @@
   "app": {
     "windows": [
       {
-        "title": "looseleaf",
-        "width": 800,
-        "height": 600
+        "title": "LooseLeaf",
+        "width": 1200,
+        "height": 800
       }
     ],
     "security": {
