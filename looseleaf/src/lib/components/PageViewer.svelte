@@ -5,6 +5,7 @@
 
 	const view = $derived(views[zine.viewIndex]);
 	const spread = $derived(view.length > 1);
+	const ratio = $derived(zine.pageRatio * view.length);
 
 	let fileInput = $state<HTMLInputElement | null>(null);
 	let target = { page: 0, slot: 0 };
@@ -107,11 +108,8 @@
 	<div class="flex h-full w-full min-w-0 flex-col items-center gap-2">
 		<div class="min-h-0 w-full flex-1" style="container-type: size">
 			<div
-				class={cn(
-					"mx-auto flex overflow-hidden border-2 border-border bg-background shadow-xl",
-					spread ? "aspect-[3/2]" : "aspect-[3/4]"
-				)}
-				style="width: min(100cqw, {spread ? 150 : 75}cqh)"
+				class="mx-auto flex overflow-hidden border-2 border-border bg-background shadow-xl"
+				style="aspect-ratio: {ratio}; width: min(100cqw, {ratio * 100}cqh)"
 			>
 				{#each view as index, n (index)}
 					{@const page = zine.pages[index]}

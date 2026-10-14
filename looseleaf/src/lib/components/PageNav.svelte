@@ -45,10 +45,11 @@
 					{#each view as i, n (i)}
 						<span
 							class={cn(
-								"flex aspect-[3/4] w-10 flex-col overflow-hidden",
+								"flex w-10 flex-col overflow-hidden",
 								imageCount(zine.pages[i]) > 1 && "gap-px bg-border",
 								n > 0 && "border-l border-dashed border-border"
 							)}
+							style="aspect-ratio: {zine.pageRatio}"
 						>
 							{#each zine.pages[i].images as slot, s (s)}
 								{#if slot.imageUrl}

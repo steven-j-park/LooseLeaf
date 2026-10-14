@@ -74,6 +74,17 @@ function blankPage(index: number): Page {
 	};
 }
 
+export type Paper = "letter" | "a4";
+
+/**
+ * One landscape sheet folds into 4 columns x 2 rows of pages, so a page is
+ * (sheet width / 4) x (sheet height / 2). Ratios are width / height.
+ */
+export const PAPER: Record<Paper, { label: string; pageRatio: number }> = {
+	letter: { label: "Letter", pageRatio: 11 / 4 / (8.5 / 2) },
+	a4: { label: "A4", pageRatio: 297 / 4 / (210 / 2) },
+};
+
 /** Page indices grouped as they are shown: cover, spreads (2-3, 4-5, 6-7), back cover. */
 export const views: number[][] = [[0], [1, 2], [3, 4], [5, 6], [7]];
 
@@ -101,6 +112,9 @@ class Zine {
 	pages = $state<Page[]>(Array.from({ length: PAGE_COUNT }, (_, i) => blankPage(i)));
 	selectedIndex = $state(0);
 	navExpanded = $state(true);
+	paper = $state<Paper>("letter");
+
+	pageRatio = $derived(PAPER[this.paper].pageRatio);
 
 	selected = $derived(this.pages[this.selectedIndex]);
 	viewIndex = $derived(viewIndexOf(this.selectedIndex));
