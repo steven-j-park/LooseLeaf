@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { Button } from "$lib/components/ui/button";
 	import { cn } from "$lib/utils";
-	import { ASPECTS, imageCount, views, zine } from "$lib/zine.svelte";
+	import { ASPECTS, imageCount, isCover, views, zine, type CaptionSize } from "$lib/zine.svelte";
 
 	const view = $derived(views[zine.viewIndex]);
 	const spread = $derived(view.length > 1);
@@ -58,6 +58,34 @@
 	function onPointerUp() {
 		drag = null;
 	}
+
+	const JUSTIFY = { left: "flex-start", center: "center", right: "flex-end" } as const;
+	const ALIGN = { top: "flex-start", middle: "center", bottom: "flex-end" } as const;
+	const CAPTION_FONT: Record<CaptionSize, string> = { sm: "6cqw", md: "9cqw", lg: "13cqw" };
+
+	let capDrag: { x: number; y: number; ox: number; oy: number } | null = null;
+
+	function onCaptionDown(e: PointerEvent, page: number) {
+		const cs = zine.pages[page].captionStyle;
+		if (!cs.custom) return;
+		(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+		capDrag = { x: e.clientX, y: e.clientY, ox: cs.x, oy: cs.y };
+	}
+
+	function onCaptionMove(e: PointerEvent, page: number) {
+		const area = (e.currentTarget as HTMLElement).parentElement;
+		if (!capDrag || !area) return;
+		const rect = area.getBoundingClientRect();
+		const clamp = (v: number) => Math.min(100, Math.max(0, v));
+		zine.updateCaptionStyle(page, {
+			x: clamp(capDrag.ox + ((e.clientX - capDrag.x) / rect.width) * 100),
+			y: clamp(capDrag.oy + ((e.clientY - capDrag.y) / rect.height) * 100),
+		});
+	}
+
+	function onCaptionUp() {
+		capDrag = null;
+	}
 </script>
 
 <main class="flex min-h-0 items-center justify-center bg-muted p-6">
@@ -92,6 +120,7 @@
 					<div
 						class={cn(
 							"relative flex min-w-0 flex-1 flex-col",
+							isCover(index) && "[container-type:inline-size]",
 							count > 1 && "gap-2 p-2",
 							n > 0 && "border-l-2 border-dashed border-border",
 							spread && index === zine.selectedIndex && "outline-4 -outline-offset-4 outline-primary",
@@ -154,12 +183,41 @@
 								{/if}
 							{/each}
 						{/if}
+						{#if isCover(index) && (page.caption || page.subCaption || page.author)}
+							{@const cs = page.captionStyle}
+							<div
+								class="pointer-events-none absolute inset-0 flex p-[5%]"
+								style={cs.custom ? "" : `justify-content: ${JUSTIFY[cs.h]}; align-items: ${ALIGN[cs.v]}`}
+							>
+								<div
+									class={cn(
+										"max-w-[90%] font-head leading-none break-words whitespace-pre-wrap",
+										cs.custom && "pointer-events-auto absolute cursor-move touch-none select-none"
+									)}
+									style="color: {cs.color}; font-size: {CAPTION_FONT[cs.size]}; text-align: {cs.h}; {cs.custom
+										? `left: ${cs.x}%; top: ${cs.y}%; transform: translate(-50%, -50%)`
+										: ''}"
+									onpointerdown={(e) => onCaptionDown(e, index)}
+									onpointermove={(e) => onCaptionMove(e, index)}
+									onpointerup={onCaptionUp}
+									onpointercancel={onCaptionUp}
+								>
+									{#if page.caption}<p>{page.caption}</p>{/if}
+									{#if page.subCaption}<p style="font-size: 0.7em">{page.subCaption}</p>{/if}
+									{#if page.author}<p style="font-size: 0.5em">{page.author}</p>{/if}
+								</div>
+							</div>
+						{/if}
 					</div>
 				{/each}
 			</div>
 		</div>
 		<p class="h-6 max-w-full truncate text-sm">
-			{view.map((i) => zine.pages[i].caption).filter(Boolean).join(" · ")}
+			{view
+				.filter((i) => !isCover(i))
+				.map((i) => zine.pages[i].caption)
+				.filter(Boolean)
+				.join(" · ")}
 		</p>
 	</div>
 </main>

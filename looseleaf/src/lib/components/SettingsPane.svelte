@@ -1,15 +1,54 @@
 <script lang="ts">
-	import { ArrowUpDown, ImagePlus } from "@lucide/svelte";
+	import {
+		AlignCenter,
+		AlignLeft,
+		AlignRight,
+		AlignVerticalJustifyCenter,
+		AlignVerticalJustifyEnd,
+		AlignVerticalJustifyStart,
+		ArrowUpDown,
+		Move,
+		ImagePlus,
+	} from "@lucide/svelte";
 	import { Button } from "$lib/components/ui/button";
 	import { Input } from "$lib/components/ui/input";
 	import { cn } from "$lib/utils";
-	import { ASPECTS, imageCount, maxImages, views, zine, type Aspect } from "$lib/zine.svelte";
+	import { ASPECTS, H_POS, V_POS, imageCount, isCover, maxImages, views, zine, type Aspect, type HAlign, type VAlign, type CaptionSize } from "$lib/zine.svelte";
 
 	let { onChooseFile }: { onChooseFile: (page: number, slot: number) => void } = $props();
 
 	const view = $derived(views[zine.viewIndex]);
 	const dim = "disabled:pointer-events-none disabled:opacity-50";
 	const aspects = Object.keys(ASPECTS) as Aspect[];
+
+	const hOptions = [
+		{ value: "left", label: "Align left", icon: AlignLeft },
+		{ value: "center", label: "Align center", icon: AlignCenter },
+		{ value: "right", label: "Align right", icon: AlignRight },
+	] as const;
+	const vOptions = [
+		{ value: "top", label: "Align top", icon: AlignVerticalJustifyStart },
+		{ value: "middle", label: "Align middle", icon: AlignVerticalJustifyCenter },
+		{ value: "bottom", label: "Align bottom", icon: AlignVerticalJustifyEnd },
+	] as const;
+	const sizes: { value: CaptionSize; label: string }[] = [
+		{ value: "sm", label: "S" },
+		{ value: "md", label: "M" },
+		{ value: "lg", label: "L" },
+	];
+
+	// Picking an alignment leaves custom placement; Custom starts from the current alignment.
+	function setH(index: number, h: HAlign) {
+		zine.updateCaptionStyle(index, { h, custom: false });
+	}
+	function setV(index: number, v: VAlign) {
+		zine.updateCaptionStyle(index, { v, custom: false });
+	}
+	function toggleCustom(index: number) {
+		const cs = zine.pages[index].captionStyle;
+		if (cs.custom) zine.updateCaptionStyle(index, { custom: false });
+		else zine.updateCaptionStyle(index, { custom: true, x: H_POS[cs.h], y: V_POS[cs.v] });
+	}
 
 	function pickImage(page: number, slot: number) {
 		zine.selectedIndex = page;
@@ -35,6 +74,22 @@
 					value={page.caption}
 					oninput={(e) => zine.updatePage(index, { caption: e.currentTarget.value })}
 				/>
+				{#if index === 0}
+				<Input
+					class="min-w-40 flex-1"
+					placeholder="Sub-caption"
+					aria-label="Front cover sub-caption"
+					value={page.subCaption}
+					oninput={(e) => zine.updatePage(index, { subCaption: e.currentTarget.value })}
+				/>
+				<Input
+					class="min-w-40 flex-1"
+					placeholder="Author"
+					aria-label="Front cover author"
+					value={page.author}
+					oninput={(e) => zine.updatePage(index, { author: e.currentTarget.value })}
+				/>
+				{/if}
 				{#if maxImages(index) > 1}
 				<Button
 					size="sm"
@@ -49,6 +104,66 @@
 				</Button>
 				{/if}
 			</div>
+
+			{#if isCover(index)}
+				{@const cs = page.captionStyle}
+				<div class="flex flex-wrap items-center gap-3" role="group" aria-label="{page.label} caption style">
+					<div class="flex gap-1">
+						{#each hOptions as o (o.value)}
+							<Button
+								size="icon"
+								variant={!cs.custom && cs.h === o.value ? "default" : "outline"}
+								title={o.label}
+								aria-label={o.label}
+								onclick={() => setH(index, o.value)}><o.icon /></Button
+							>
+						{/each}
+					</div>
+					<div class="flex gap-1">
+						{#each vOptions as o (o.value)}
+							<Button
+								size="icon"
+								variant={!cs.custom && cs.v === o.value ? "default" : "outline"}
+								title={o.label}
+								aria-label={o.label}
+								onclick={() => setV(index, o.value)}><o.icon /></Button
+							>
+						{/each}
+					</div>
+					<Button
+						size="sm"
+						variant={cs.custom ? "default" : "outline"}
+						title="Drag the caption into position on the cover"
+						onclick={() => toggleCustom(index)}><Move /> Custom</Button
+					>
+					<div class="flex gap-1" role="group" aria-label="Caption size">
+						{#each sizes as z (z.value)}
+							<Button
+								size="icon"
+								variant={cs.size === z.value ? "default" : "outline"}
+								aria-label="Caption size {z.label}"
+								onclick={() => zine.updateCaptionStyle(index, { size: z.value })}>{z.label}</Button
+							>
+						{/each}
+					</div>
+					<div class="flex gap-1" role="group" aria-label="Caption color">
+						{#each ["white", "black"] as const as c (c)}
+							<Button
+								size="icon"
+								variant={cs.color === c ? "default" : "outline"}
+								title="{c === 'white' ? 'White' : 'Black'} caption"
+								aria-label="{c} caption"
+								onclick={() => zine.updateCaptionStyle(index, { color: c })}
+							>
+								<span class="size-4 rounded-full border-2 border-border" style="background: {c}"></span>
+							</Button>
+						{/each}
+					</div>
+					{#if cs.custom}
+						<span class="text-xs">Drag the caption on the cover</span>
+					{/if}
+				</div>
+			{/if}
 
 			{#each page.images.slice(0, maxImages(index)) as slot, s (s)}
 				{@const hasImage = slot.imageUrl !== null}

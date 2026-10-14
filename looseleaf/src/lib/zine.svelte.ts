@@ -11,6 +11,22 @@ export const ASPECTS = {
 } as const;
 export type Aspect = keyof typeof ASPECTS;
 
+export type HAlign = "left" | "center" | "right";
+export type VAlign = "top" | "middle" | "bottom";
+export type CaptionSize = "sm" | "md" | "lg";
+
+/** Overlay caption styling; only used on the covers. */
+export interface CaptionStyle {
+	h: HAlign;
+	v: VAlign;
+	size: CaptionSize;
+	color: "white" | "black";
+	/** When true the caption sits at x/y (percent of the page) instead of the h/v alignment. */
+	custom: boolean;
+	x: number;
+	y: number;
+}
+
 /** One image position on a page, with its own framing. */
 export interface Slot {
 	imageUrl: string | null;
@@ -28,6 +44,10 @@ export interface Page {
 	/** Up to two images, stacked top to bottom. Kept compact: slot 1 is only used if slot 0 is. */
 	images: [Slot, Slot];
 	caption: string;
+	/** Front cover only; styled and positioned together with the caption. */
+	subCaption: string;
+	author: string;
+	captionStyle: CaptionStyle;
 }
 
 const PAGE_COUNT = 8;
@@ -48,6 +68,9 @@ function blankPage(index: number): Page {
 		label: labelFor(index),
 		images: [blankSlot(), blankSlot()],
 		caption: "",
+		subCaption: "",
+		author: "",
+		captionStyle: { h: "center", v: "bottom", size: "md", color: "white", custom: false, x: 50, y: 85 },
 	};
 }
 
@@ -63,6 +86,13 @@ export function maxImages(pageIndex: number): number {
 	return pageIndex === 0 || pageIndex === PAGE_COUNT - 1 ? 1 : 2;
 }
 
+export function isCover(pageIndex: number): boolean {
+	return maxImages(pageIndex) === 1;
+}
+
+export const H_POS: Record<HAlign, number> = { left: 12, center: 50, right: 88 };
+export const V_POS: Record<VAlign, number> = { top: 10, middle: 50, bottom: 90 };
+
 export function imageCount(page: Page): number {
 	return page.images.filter((s) => s.imageUrl).length;
 }
@@ -75,8 +105,12 @@ class Zine {
 	selected = $derived(this.pages[this.selectedIndex]);
 	viewIndex = $derived(viewIndexOf(this.selectedIndex));
 
-	updatePage(index: number, patch: Partial<Pick<Page, "caption">>) {
+	updatePage(index: number, patch: Partial<Pick<Page, "caption" | "subCaption" | "author">>) {
 		Object.assign(this.pages[index], patch);
+	}
+
+	updateCaptionStyle(index: number, patch: Partial<CaptionStyle>) {
+		Object.assign(this.pages[index].captionStyle, patch);
 	}
 
 	updateSlot(index: number, slot: number, patch: Partial<Slot>) {
