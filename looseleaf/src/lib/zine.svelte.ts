@@ -1,3 +1,5 @@
+import { convertFileSrc, invoke } from "@tauri-apps/api/core";
+
 export type PageMode = "fit" | "fill";
 
 export const ASPECTS = {
@@ -29,7 +31,11 @@ export interface CaptionStyle {
 
 /** One image position on a page, with its own framing. */
 export interface Slot {
-	imageUrl: string | null;
+	/** Original file on disk (null = empty slot). This is what gets saved and exported. */
+	path: string | null;
+	/** Cached, downscaled copies made by the backend for display. */
+	previewUrl: string | null;
+	thumbUrl: string | null;
 	mode: PageMode;
 	/** object-position percentages (0-100) used when mode is "fill" */
 	offsetX: number;
@@ -59,7 +65,7 @@ function labelFor(index: number): string {
 }
 
 function blankSlot(): Slot {
-	return { imageUrl: null, mode: "fit", offsetX: 50, offsetY: 50, aspect: "auto" };
+	return { path: null, previewUrl: null, thumbUrl: null, mode: "fit", offsetX: 50, offsetY: 50, aspect: "auto" };
 }
 
 function blankPage(index: number): Page {
@@ -72,6 +78,26 @@ function blankPage(index: number): Page {
 		author: "",
 		captionStyle: { h: "center", v: "bottom", size: "md", color: "white", custom: false, x: 50, y: 85 },
 	};
+}
+
+/** Result of the backend's `prepare_image` command. */
+interface ImageInfo {
+	width: number;
+	height: number;
+	previewPath: string;
+	thumbPath: string;
+}
+
+/** The project file / export payload (mirrors src-tauri/src/project.rs). */
+export interface Project {
+	paper: Paper;
+	pages: {
+		caption: string;
+		subCaption: string;
+		author: string;
+		captionStyle: CaptionStyle;
+		images: Pick<Slot, "path" | "mode" | "offsetX" | "offsetY" | "aspect">[];
+	}[];
 }
 
 export type Paper = "letter" | "a4";
@@ -105,7 +131,7 @@ export const H_POS: Record<HAlign, number> = { left: 12, center: 50, right: 88 }
 export const V_POS: Record<VAlign, number> = { top: 10, middle: 50, bottom: 90 };
 
 export function imageCount(page: Page): number {
-	return page.images.filter((s) => s.imageUrl).length;
+	return page.images.filter((s) => s.path).length;
 }
 
 class Zine {
@@ -113,6 +139,10 @@ class Zine {
 	selectedIndex = $state(0);
 	navExpanded = $state(true);
 	paper = $state<Paper>("letter");
+	/** Where the project is saved, once it has been saved or opened. */
+	projectPath = $state<string | null>(null);
+	/** Last message from a file operation, shown in the header. */
+	status = $state("");
 
 	pageRatio = $derived(PAPER[this.paper].pageRatio);
 
@@ -131,54 +161,116 @@ class Zine {
 		Object.assign(this.pages[index].images[slot], patch);
 	}
 
-	setImage(index: number, slot: number, file: File) {
-		if (!file.type.startsWith("image/") || slot >= maxImages(index)) return;
-		this.releaseImage(index, slot);
-		this.updateSlot(index, slot, {
-			imageUrl: URL.createObjectURL(file),
-			mode: "fit",
-			offsetX: 50,
-			offsetY: 50,
-		});
-		this.compact(index);
+	/** Import an image from disk into a slot; the backend builds the preview and thumbnail. */
+	async setImage(index: number, slot: number, path: string) {
+		if (slot >= maxImages(index)) return;
+		try {
+			const info = await invoke<ImageInfo>("prepare_image", { path });
+			this.updateSlot(index, slot, {
+				path,
+				previewUrl: convertFileSrc(info.previewPath),
+				thumbUrl: convertFileSrc(info.thumbPath),
+				mode: "fit",
+				offsetX: 50,
+				offsetY: 50,
+			});
+			this.compact(index);
+		} catch (e) {
+			this.status = String(e);
+		}
 	}
 
 	/** Fill the first free slot; if the page is full, replace `fallbackSlot`. */
-	addImage(index: number, file: File, fallbackSlot = 0) {
+	async addImage(index: number, path: string, fallbackSlot = 0) {
 		const images = this.pages[index].images;
 		const max = maxImages(index);
-		const slot = !images[0].imageUrl ? 0 : max > 1 && !images[1].imageUrl ? 1 : Math.min(fallbackSlot, max - 1);
-		this.setImage(index, slot, file);
+		const slot = !images[0].path ? 0 : max > 1 && !images[1].path ? 1 : Math.min(fallbackSlot, max - 1);
+		await this.setImage(index, slot, path);
 	}
 
 	clearImage(index: number, slot: number) {
-		this.releaseImage(index, slot);
 		this.pages[index].images[slot] = blankSlot();
 		this.compact(index);
 	}
 
 	swapImages(index: number) {
 		const images = this.pages[index].images;
-		if (!images[0].imageUrl || !images[1].imageUrl) return;
+		if (!images[0].path || !images[1].path) return;
 		this.pages[index].images = [images[1], images[0]];
 	}
 
 	reset() {
-		this.pages.forEach((p, i) => p.images.forEach((_, s) => this.releaseImage(i, s)));
 		this.pages = Array.from({ length: PAGE_COUNT }, (_, i) => blankPage(i));
 		this.selectedIndex = 0;
+		this.paper = "letter";
+		this.projectPath = null;
+	}
+
+	/** The persisted subset of the state, in the shape the backend saves and exports. */
+	toProject(): Project {
+		return {
+			paper: this.paper,
+			pages: this.pages.map((p) => ({
+				caption: p.caption,
+				subCaption: p.subCaption,
+				author: p.author,
+				captionStyle: { ...p.captionStyle },
+				images: p.images.map((s) => ({
+					path: s.path,
+					mode: s.mode,
+					offsetX: s.offsetX,
+					offsetY: s.offsetY,
+					aspect: s.aspect,
+				})),
+			})) as Project["pages"],
+		};
+	}
+
+	/** Replace the state with a loaded project, rebuilding previews; returns paths that failed. */
+	async load(project: Project): Promise<string[]> {
+		const pages = project.pages.map((data, i) => {
+			const page = blankPage(i);
+			page.caption = data.caption;
+			page.subCaption = data.subCaption ?? "";
+			page.author = data.author ?? "";
+			page.captionStyle = { ...page.captionStyle, ...data.captionStyle };
+			page.images = data.images.map((s) => ({ ...blankSlot(), ...s })) as [Slot, Slot];
+			return page;
+		});
+		const loaded = pages.map((p) => p.images.map((s) => s.path));
+		pages.forEach((p) => p.images.forEach((s) => (s.path = null)));
+		this.pages = pages;
+		this.paper = project.paper;
+		this.selectedIndex = 0;
+
+		const failed: string[] = [];
+		await Promise.all(
+			pages.flatMap((p, i) =>
+				p.images.map(async (_, s) => {
+					const path = loaded[i][s];
+					if (!path) return;
+					try {
+						const info = await invoke<ImageInfo>("prepare_image", { path });
+						this.updateSlot(i, s, {
+							path,
+							previewUrl: convertFileSrc(info.previewPath),
+							thumbUrl: convertFileSrc(info.thumbPath),
+						});
+					} catch {
+						failed.push(path);
+					}
+				})
+			)
+		);
+		this.pages.forEach((_, i) => this.compact(i));
+		return failed;
 	}
 
 	private compact(index: number) {
 		const images = this.pages[index].images;
-		if (!images[0].imageUrl && images[1].imageUrl) {
+		if (!images[0].path && images[1].path) {
 			this.pages[index].images = [images[1], images[0]];
 		}
-	}
-
-	private releaseImage(index: number, slot: number) {
-		const url = this.pages[index].images[slot].imageUrl;
-		if (url) URL.revokeObjectURL(url);
 	}
 }
 

@@ -69,6 +69,9 @@
 				<span class="font-head">{page.label}</span>
 				<Input
 					class="min-w-40 flex-1"
+					autocapitalize="off"
+					autocorrect="off"
+					spellcheck={false}
 					placeholder="Caption"
 					aria-label="{page.label} caption"
 					value={page.caption}
@@ -77,6 +80,9 @@
 				{#if index === 0}
 				<Input
 					class="min-w-40 flex-1"
+					autocapitalize="off"
+					autocorrect="off"
+					spellcheck={false}
 					placeholder="Sub-caption"
 					aria-label="Front cover sub-caption"
 					value={page.subCaption}
@@ -84,6 +90,9 @@
 				/>
 				<Input
 					class="min-w-40 flex-1"
+					autocapitalize="off"
+					autocorrect="off"
+					spellcheck={false}
 					placeholder="Author"
 					aria-label="Front cover author"
 					value={page.author}
@@ -166,7 +175,7 @@
 			{/if}
 
 			{#each page.images.slice(0, maxImages(index)) as slot, s (s)}
-				{@const hasImage = slot.imageUrl !== null}
+				{@const hasImage = slot.path !== null}
 				<div class={cn("flex flex-wrap items-center gap-3", !hasImage && s === 1 && imageCount(page) === 0 && "hidden")}>
 					<button
 						type="button"
@@ -177,8 +186,8 @@
 						title={hasImage ? "Click to replace image" : "Click to add image"}
 						onclick={() => pickImage(index, s)}
 					>
-						{#if slot.imageUrl}
-							<img src={slot.imageUrl} alt="" class="size-full object-cover" />
+						{#if slot.path}
+							<img src={slot.thumbUrl} alt="" class="size-full object-cover" />
 						{:else}
 							<ImagePlus class="size-5" />
 						{/if}

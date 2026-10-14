@@ -52,10 +52,10 @@
 							style="aspect-ratio: {zine.pageRatio}"
 						>
 							{#each zine.pages[i].images as slot, s (s)}
-								{#if slot.imageUrl}
+								{#if slot.path}
 									<span class="flex min-h-0 flex-1 items-center justify-center overflow-hidden bg-muted">
 										<img
-											src={slot.imageUrl}
+											src={slot.thumbUrl}
 											alt=""
 											class={cn("size-full", slot.mode === "fill" ? "object-cover" : "object-contain")}
 											style="object-position: {slot.offsetX}% {slot.offsetY}%"

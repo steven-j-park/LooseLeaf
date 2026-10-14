@@ -1,4 +1,8 @@
 <script lang="ts">
+	import { getCurrentWebview } from "@tauri-apps/api/webview";
+	import { isTauri } from "@tauri-apps/api/core";
+	import { onMount } from "svelte";
+	import { chooseImage, isImagePath } from "$lib/actions";
 	import { Button } from "$lib/components/ui/button";
 	import { cn } from "$lib/utils";
 	import { ASPECTS, imageCount, isCover, views, zine, type CaptionSize } from "$lib/zine.svelte";
@@ -7,23 +11,45 @@
 	const spread = $derived(view.length > 1);
 	const ratio = $derived(zine.pageRatio * view.length);
 
-	let fileInput = $state<HTMLInputElement | null>(null);
-	let target = { page: 0, slot: 0 };
 	let dragOver = $state<number | null>(null);
 	let drag: { x: number; y: number; ox: number; oy: number } | null = null;
 
 	export function chooseFile(page = zine.selectedIndex, slot = 0) {
-		target = { page, slot };
-		fileInput?.click();
+		return chooseImage(page, slot);
 	}
 
-	function onDrop(e: DragEvent, page: number, slot: number) {
-		e.preventDefault();
-		dragOver = null;
-		zine.selectedIndex = page;
-		const file = e.dataTransfer?.files?.[0];
-		if (file) zine.addImage(page, file, slot);
+	/** Page / image slot under a window position from Tauri's drag-drop event (physical px). */
+	function targetAt(pos: { x: number; y: number }): { page: number; slot: number } | null {
+		const el = document.elementFromPoint(pos.x / devicePixelRatio, pos.y / devicePixelRatio);
+		const pageEl = el?.closest<HTMLElement>("[data-page]");
+		if (!pageEl) return null;
+		const slotEl = el?.closest<HTMLElement>("[data-slot]");
+		return { page: Number(pageEl.dataset.page), slot: Number(slotEl?.dataset.slot ?? 0) };
 	}
+
+	// Native file drops arrive as paths via Tauri (the webview doesn't deliver HTML5 file drops).
+	onMount(() => {
+		if (!isTauri()) return;
+		let unlisten: (() => void) | undefined;
+		getCurrentWebview()
+			.onDragDropEvent(async ({ payload }) => {
+				if (payload.type === "leave") {
+					dragOver = null;
+				} else if (payload.type === "enter" || payload.type === "over") {
+					dragOver = targetAt(payload.position)?.page ?? null;
+				} else if (payload.type === "drop") {
+					dragOver = null;
+					const target = targetAt(payload.position);
+					const path = payload.paths.find(isImagePath);
+					if (target && path) {
+						zine.selectedIndex = target.page;
+						await zine.addImage(target.page, path, target.slot);
+					}
+				}
+			})
+			.then((fn) => (unlisten = fn));
+		return () => unlisten?.();
+	});
 
 	function frameStyle(aspect: keyof typeof ASPECTS): string {
 		const r = ASPECTS[aspect];
@@ -90,21 +116,6 @@
 </script>
 
 <main class="flex min-h-0 items-center justify-center bg-muted p-6">
-	<input
-		bind:this={fileInput}
-		type="file"
-		accept="image/*"
-		class="hidden"
-		onchange={(e) => {
-			const file = e.currentTarget.files?.[0];
-			if (file) {
-				zine.selectedIndex = target.page;
-				zine.setImage(target.page, target.slot, file);
-			}
-			e.currentTarget.value = "";
-		}}
-	/>
-
 	<div class="flex h-full w-full min-w-0 flex-col items-center gap-2">
 		<div class="min-h-0 w-full flex-1" style="container-type: size">
 			<div
@@ -125,13 +136,8 @@
 							dragOver === index && "bg-primary/30"
 						)}
 						aria-label={page.label}
+						data-page={index}
 						onclick={() => (zine.selectedIndex = index)}
-						ondragover={(e) => {
-							e.preventDefault();
-							dragOver = index;
-						}}
-						ondragleave={() => (dragOver = null)}
-						ondrop={(e) => onDrop(e, index, 0)}
 					>
 						{#if count === 0}
 							<div class="flex size-full flex-col items-center justify-center gap-3 p-4 text-center">
@@ -146,22 +152,18 @@
 							</div>
 						{:else}
 							{#each page.images as slot, s (s)}
-								{#if slot.imageUrl}
+								{#if slot.path}
 									<div
 										class="flex min-h-0 flex-1 items-center justify-center"
 										style="container-type: size"
-										ondragover={(e) => e.stopPropagation()}
-										ondrop={(e) => {
-											e.stopPropagation();
-											onDrop(e, index, s);
-										}}
+										data-slot={s}
 									>
 										<div
 											class={cn("relative overflow-hidden", slot.aspect !== "auto" && "outline outline-1 outline-border/40")}
 											style={frameStyle(slot.aspect)}
 										>
 											<img
-												src={slot.imageUrl}
+												src={slot.previewUrl ?? ""}
 												alt={page.caption || `${page.label} image ${s + 1}`}
 												draggable="false"
 												class={cn(
@@ -189,8 +191,8 @@
 							>
 								<div
 									class={cn(
-										"max-w-[90%] font-head leading-none break-words whitespace-pre-wrap",
-										cs.custom && "pointer-events-auto absolute cursor-move touch-none select-none"
+										"max-w-[90%] font-head leading-none break-words whitespace-pre-wrap select-none",
+										cs.custom && "pointer-events-auto absolute cursor-move touch-none"
 									)}
 									style="color: {cs.color}; font-size: {CAPTION_FONT[cs.size]}; text-align: {cs.h}; {cs.custom
 										? `left: ${cs.x}%; top: ${cs.y}%; transform: translate(-50%, -50%)`
