@@ -8,7 +8,6 @@
 	import { ASPECTS, imageCount, isCover, views, zine, type CaptionSize } from "$lib/zine.svelte";
 
 	const view = $derived(views[zine.viewIndex]);
-	const spread = $derived(view.length > 1);
 	const ratio = $derived(zine.pageRatio * view.length);
 
 	let dragOver = $state<number | null>(null);
@@ -132,7 +131,6 @@
 							isCover(index) && "[container-type:inline-size]",
 							count > 1 && "gap-2 p-2",
 							n > 0 && "border-l-2 border-dashed border-border",
-							spread && index === zine.selectedIndex && "outline-4 -outline-offset-4 outline-primary",
 							dragOver === index && "bg-primary/30"
 						)}
 						aria-label={page.label}
