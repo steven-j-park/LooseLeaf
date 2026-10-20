@@ -212,12 +212,5 @@
 				{/each}
 			</div>
 		</div>
-		<p class="h-6 max-w-full truncate text-sm">
-			{view
-				.filter((i) => !isCover(i))
-				.map((i) => zine.pages[i].caption)
-				.filter(Boolean)
-				.join(" · ")}
-		</p>
 	</div>
 </main>
