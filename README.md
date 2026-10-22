@@ -40,7 +40,7 @@ LooseLeaf arranges your eight pages on one side of a sheet so that, once printed
 
 1. Print the exported PDF.
 2. Fold in half lengthwise, then in quarters widthwise.
-3. Cut along the centre crease between the middle panels.
+3. Cut along the center crease between the middle panels.
 4. Open it out, push the middle together and fold it into a booklet.
 
 Prefer to watch? Alison Spence Montillet shows the whole fold process here:
