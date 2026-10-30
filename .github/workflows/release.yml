@@ -1,0 +1,81 @@
+# Builds LooseLeaf for macOS, Windows and Linux and uploads the bundles to a draft GitHub release.
+# Trigger: push a tag matching the app version, e.g. `git tag v0.1.0 && git push origin v0.1.0`.
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: macos-latest
+            args: --target universal-apple-darwin
+          - platform: windows-latest
+            args: ""
+          - platform: ubuntu-22.04
+            args: ""
+
+    runs-on: ${{ matrix.platform }}
+
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check tag matches app version
+        if: startsWith(github.ref, 'refs/tags/')
+        run: |
+          version=$(node -p "require('./looseleaf/src-tauri/tauri.conf.json').version")
+          if [ "${GITHUB_REF_NAME}" != "v${version}" ]; then
+            echo "Tag ${GITHUB_REF_NAME} does not match tauri.conf.json version v${version}"
+            exit 1
+          fi
+
+      - name: Install Linux dependencies
+        if: matrix.platform == 'ubuntu-22.04'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+          cache: npm
+          cache-dependency-path: looseleaf/package-lock.json
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          # The universal macOS build compiles for both Apple Silicon and Intel.
+          targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
+
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: looseleaf/src-tauri -> target
+
+      - name: Install frontend dependencies
+        working-directory: looseleaf
+        run: npm ci
+
+      - uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          projectPath: looseleaf
+          tauriScript: npx tauri
+          args: ${{ matrix.args }}
+          tagName: v__VERSION__
+          releaseName: LooseLeaf v__VERSION__
+          releaseBody: See the notes below for what's in this release.
+          releaseDraft: true
+          prerelease: true
