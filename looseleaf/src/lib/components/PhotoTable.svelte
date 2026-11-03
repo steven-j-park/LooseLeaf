@@ -12,6 +12,8 @@
 		name: string;
 		thumbUrl: string | null;
 		failed: boolean;
+		/** Taller than wide (after EXIF rotation); spans two rows in the grid. Unknown until the thumbnail loads. */
+		portrait: boolean;
 	}
 
 	/** Thumbnails generated at once; each runs on a backend blocking thread. */
@@ -58,6 +60,7 @@
 				name: path.split(/[\\/]/).pop() ?? path,
 				thumbUrl: null,
 				failed: false,
+				portrait: false,
 			}));
 		} catch (e) {
 			if (gen !== generation) return;
@@ -77,8 +80,11 @@
 			while (gen === generation && next < list.length) {
 				const photo = list[next++];
 				try {
-					const info = await invoke<{ thumbPath: string }>("prepare_image", { path: photo.path });
+					const info = await invoke<{ thumbPath: string; width: number; height: number }>("prepare_image", {
+						path: photo.path,
+					});
 					photo.thumbUrl = convertFileSrc(info.thumbPath);
+					photo.portrait = info.height > info.width;
 				} catch {
 					photo.failed = true;
 				}
@@ -172,7 +178,7 @@
 		{/if}
 	</div>
 
-	<div class="min-h-0 flex-1 overflow-y-auto p-3">
+	<div class="min-h-0 flex-1 overflow-y-auto p-3 [container-type:inline-size]">
 		{#if !dir}
 			<p class="mt-8 text-center text-sm text-muted-foreground">
 				Open a folder to lay out its JPEGs here, then drag them onto your zine.
@@ -187,16 +193,17 @@
 			<p class="mb-2 text-xs text-muted-foreground">
 				{photos.length} photo{photos.length === 1 ? "" : "s"} · drag onto a page, or click to add to the selected page
 			</p>
-			<ul class="grid grid-cols-2 gap-2">
+			<!-- Rows are as tall as a column is wide, so landscape/square photos get a square cell and portrait ones a tall 1x2 cell. -->
+			<ul class="grid auto-rows-[calc((100cqw-0.5rem)/2)] grid-cols-2 gap-2">
 				{#each photos as photo (photo.path)}
-					<li>
+					<li class={cn(photo.portrait && "row-span-2")}>
 						<button
 							type="button"
 							title={photo.failed ? `${photo.name} (could not be read)` : photo.name}
 							aria-label={photo.name}
 							disabled={photo.failed}
 							class={cn(
-								"flex aspect-square w-full touch-none items-center justify-center overflow-hidden border-2 border-border bg-muted transition select-none",
+								"flex size-full touch-none items-center justify-center overflow-hidden border-2 border-border bg-muted transition select-none",
 								photo.failed ? "cursor-not-allowed opacity-50" : "cursor-grab hover:shadow-md active:cursor-grabbing",
 								photoDrag.path === photo.path && "opacity-40"
 							)}
