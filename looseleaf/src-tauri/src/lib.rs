@@ -1,6 +1,7 @@
 mod export;
 mod images;
 mod project;
+mod qr;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -12,6 +13,7 @@ pub fn run() {
             project::save_project,
             project::load_project,
             export::export_zine,
+            qr::qr_matrix,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

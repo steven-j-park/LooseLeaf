@@ -6,10 +6,25 @@
 		AlignVerticalJustifyCenter,
 		AlignVerticalJustifyEnd,
 		AlignVerticalJustifyStart,
+		ArrowDownLeft,
+		ArrowDownRight,
+		ArrowUpLeft,
+		ArrowUpRight,
+		Dot,
 		Move,
+		QrCode,
 	} from "@lucide/svelte";
 	import { Button } from "#lib/components/ui/button/index.js";
-	import { H_POS, V_POS, zine, type CaptionSize, type HAlign, type VAlign } from "#lib/zine.svelte.js";
+	import {
+		BACK_COVER,
+		H_POS,
+		V_POS,
+		zine,
+		type CaptionSize,
+		type HAlign,
+		type QrPosition,
+		type VAlign,
+	} from "#lib/zine.svelte.js";
 	import CaptionInput from "./CaptionInput.svelte";
 	import SlotOptions from "./SlotOptions.svelte";
 
@@ -34,6 +49,16 @@
 		{ value: "md", label: "M" },
 		{ value: "lg", label: "L" },
 	];
+
+	const qrPositions: { value: QrPosition; label: string; icon: typeof Dot }[] = [
+		{ value: "top-left", label: "QR top left", icon: ArrowUpLeft },
+		{ value: "top-right", label: "QR top right", icon: ArrowUpRight },
+		{ value: "center", label: "QR middle", icon: Dot },
+		{ value: "bottom-left", label: "QR bottom left", icon: ArrowDownLeft },
+		{ value: "bottom-right", label: "QR bottom right", icon: ArrowDownRight },
+	];
+	// Past version 6 (41 modules) the printed modules get small enough that some phones struggle.
+	const qrDense = $derived((zine.qrModules?.length ?? 0) > 41);
 
 	// Picking an alignment leaves custom placement; Custom starts from the current alignment.
 	function setH(h: HAlign) {
@@ -128,5 +153,31 @@
 		<span class="text-xs">Drag the caption on the cover</span>
 	{/if}
 </div>
+
+{#if index === BACK_COVER}
+	<div class="flex flex-wrap items-center gap-3" role="group" aria-label="Back cover QR code">
+		<QrCode class="size-5 shrink-0" aria-hidden="true" />
+		<CaptionInput
+			value={page.qr.url}
+			placeholder="QR code link (e.g. https://instagram.com/you)"
+			label="Back cover QR code link"
+			oninput={(url) => zine.updateQr({ url })}
+		/>
+		<div class="flex gap-1" role="group" aria-label="QR code position">
+			{#each qrPositions as o (o.value)}
+				<Button
+					size="icon"
+					variant={page.qr.position === o.value ? "default" : "outline"}
+					title={o.label}
+					aria-label={o.label}
+					onclick={() => zine.updateQr({ position: o.value })}><o.icon /></Button
+				>
+			{/each}
+		</div>
+		{#if qrDense}
+			<span class="text-xs">Long link: a shorter URL prints a QR code that scans more reliably</span>
+		{/if}
+	</div>
+{/if}
 
 <SlotOptions {index} slot={0} {onChooseFile} />

@@ -6,7 +6,20 @@
 	import { Button } from "#lib/components/ui/button/index.js";
 	import { dropTargetAt, photoDrag } from "#lib/photoDrag.svelte.js";
 	import { cn } from "#lib/utils.js";
-	import { ASPECTS, imageCount, isCover, views, zine, type CaptionSize } from "#lib/zine.svelte.js";
+	import {
+		ASPECTS,
+		BACK_COVER,
+		imageCount,
+		isCover,
+		QR_INSET,
+		QR_QUIET,
+		QR_RADIUS,
+		QR_SIZE,
+		views,
+		zine,
+		type CaptionSize,
+		type QrPosition,
+	} from "#lib/zine.svelte.js";
 
 	const view = $derived(views[zine.viewIndex]);
 	const ratio = $derived(zine.pageRatio * view.length);
@@ -85,6 +98,30 @@
 	const JUSTIFY = { left: "flex-start", center: "center", right: "flex-end" } as const;
 	const ALIGN = { top: "flex-start", middle: "center", bottom: "flex-end" } as const;
 	const CAPTION_FONT: Record<CaptionSize, string> = { sm: "6cqw", md: "9cqw", lg: "13cqw" };
+
+	// Mirrors qr.rs `origin`; sizes are cqw of the cover (an inline-size container).
+	function qrStyle(position: QrPosition): string {
+		const inset = `${QR_INSET * 100}cqw`;
+		const pos: Record<QrPosition, string> = {
+			"top-left": `top: ${inset}; left: ${inset}`,
+			"top-right": `top: ${inset}; right: ${inset}`,
+			"bottom-left": `bottom: ${inset}; left: ${inset}`,
+			"bottom-right": `bottom: ${inset}; right: ${inset}`,
+			center: "top: 50%; left: 50%; transform: translate(-50%, -50%)",
+		};
+		return `width: ${QR_SIZE * 100}cqw; ${pos[position]}`;
+	}
+
+	/** One SVG path of unit squares for the dark modules, offset by the quiet zone. */
+	function qrPath(modules: boolean[][]): string {
+		let d = "";
+		modules.forEach((row, y) =>
+			row.forEach((dark, x) => {
+				if (dark) d += `M${x + QR_QUIET} ${y + QR_QUIET}h1v1h-1z`;
+			})
+		);
+		return d;
+	}
 
 	let capDrag: { x: number; y: number; ox: number; oy: number } | null = null;
 
@@ -202,6 +239,20 @@
 									{#if page.author}<p style="font-size: 0.5em">{page.author}</p>{/if}
 								</div>
 							</div>
+						{/if}
+						{#if index === BACK_COVER && zine.qrModules && page.qr.url.trim()}
+							{@const n = zine.qrModules.length + 2 * QR_QUIET}
+							<svg
+								class="pointer-events-none absolute"
+								style={qrStyle(page.qr.position)}
+								viewBox="0 0 {n} {n}"
+								shape-rendering="crispEdges"
+								role="img"
+								aria-label="QR code for {page.qr.url}"
+							>
+								<rect width={n} height={n} rx={QR_RADIUS} fill="white" />
+								<path d={qrPath(zine.qrModules)} fill="black" />
+							</svg>
 						{/if}
 					</div>
 				{/each}
