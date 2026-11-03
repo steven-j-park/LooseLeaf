@@ -478,7 +478,7 @@ mod tests {
         let pages: Vec<PageData> = (0..PAGE_COUNT)
             .map(|_| page(vec![slot(Some(p.clone()), "fill", "auto"), slot(Some(p.clone()), "fit", "auto")], "Title"))
             .collect();
-        let project = Project { paper: "letter".into(), pages };
+        let project = Project { paper: "letter".into(), pages, photo_dir: None };
 
         let t = Instant::now();
         let sheet = render_sheet(&project).unwrap();
@@ -548,7 +548,7 @@ mod tests {
             (0..PAGE_COUNT).map(|_| page(vec![slot(None, "fit", "auto"), slot(None, "fit", "auto")], "")).collect();
         pages[0] = page(vec![slot(Some(p.clone()), "fill", "auto"), slot(None, "fit", "auto")], "Hello");
         pages[1] = page(vec![slot(Some(p.clone()), "fit", "auto"), slot(Some(p), "fill", "3:2")], "");
-        let project = Project { paper: "letter".into(), pages };
+        let project = Project { paper: "letter".into(), pages, photo_dir: None };
 
         let sheet = render_sheet(&project).unwrap();
         assert_eq!((sheet.width(), sheet.height()), (3300, 2550));

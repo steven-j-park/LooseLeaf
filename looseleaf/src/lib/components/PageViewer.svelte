@@ -4,6 +4,7 @@
 	import { onMount } from "svelte";
 	import { chooseImage, isImagePath } from "$lib/actions";
 	import { Button } from "$lib/components/ui/button";
+	import { dropTargetAt, photoDrag } from "$lib/photoDrag.svelte";
 	import { cn } from "$lib/utils";
 	import { ASPECTS, imageCount, isCover, views, zine, type CaptionSize } from "$lib/zine.svelte";
 
@@ -18,12 +19,8 @@
 	}
 
 	/** Page / image slot under a window position from Tauri's drag-drop event (physical px). */
-	function targetAt(pos: { x: number; y: number }): { page: number; slot: number } | null {
-		const el = document.elementFromPoint(pos.x / devicePixelRatio, pos.y / devicePixelRatio);
-		const pageEl = el?.closest<HTMLElement>("[data-page]");
-		if (!pageEl) return null;
-		const slotEl = el?.closest<HTMLElement>("[data-slot]");
-		return { page: Number(pageEl.dataset.page), slot: Number(slotEl?.dataset.slot ?? 0) };
+	function targetAt(pos: { x: number; y: number }) {
+		return dropTargetAt(pos.x / devicePixelRatio, pos.y / devicePixelRatio);
 	}
 
 	// Native file drops arrive as paths via Tauri (the webview doesn't deliver HTML5 file drops).
@@ -131,7 +128,7 @@
 							isCover(index) && "[container-type:inline-size]",
 							count > 1 && "gap-2 p-2",
 							n > 0 && "border-l-2 border-dashed border-border",
-							dragOver === index && "bg-primary/30"
+							(dragOver === index || photoDrag.target?.page === index) && "bg-primary/30"
 						)}
 						aria-label={page.label}
 						data-page={index}

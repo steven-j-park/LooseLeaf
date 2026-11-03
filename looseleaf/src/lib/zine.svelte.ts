@@ -98,6 +98,8 @@ export interface Project {
 		captionStyle: CaptionStyle;
 		images: Pick<Slot, "path" | "mode" | "offsetX" | "offsetY" | "aspect">[];
 	}[];
+	/** Folder shown in the photo table. */
+	photoDir?: string | null;
 }
 
 export type Paper = "letter" | "a4";
@@ -138,6 +140,9 @@ class Zine {
 	pages = $state<Page[]>(Array.from({ length: PAGE_COUNT }, (_, i) => blankPage(i)));
 	selectedIndex = $state(0);
 	navExpanded = $state(true);
+	photoTableOpen = $state(false);
+	/** Folder the photo table shows; saved with the project. */
+	photoDir = $state<string | null>(null);
 	paper = $state<Paper>("letter");
 	/** Where the project is saved, once it has been saved or opened. */
 	projectPath = $state<string | null>(null);
@@ -203,6 +208,7 @@ class Zine {
 		this.pages = Array.from({ length: PAGE_COUNT }, (_, i) => blankPage(i));
 		this.selectedIndex = 0;
 		this.paper = "letter";
+		this.photoDir = null;
 		this.projectPath = null;
 	}
 
@@ -210,6 +216,7 @@ class Zine {
 	toProject(): Project {
 		return {
 			paper: this.paper,
+			photoDir: this.photoDir,
 			pages: this.pages.map((p) => ({
 				caption: p.caption,
 				subCaption: p.subCaption,
@@ -241,6 +248,7 @@ class Zine {
 		pages.forEach((p) => p.images.forEach((s) => (s.path = null)));
 		this.pages = pages;
 		this.paper = project.paper;
+		this.photoDir = project.photoDir ?? null;
 		this.selectedIndex = 0;
 
 		const failed: string[] = [];

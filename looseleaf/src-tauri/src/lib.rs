@@ -8,6 +8,7 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .invoke_handler(tauri::generate_handler![
             images::prepare_image,
+            images::list_images,
             project::save_project,
             project::load_project,
             export::export_zine,
