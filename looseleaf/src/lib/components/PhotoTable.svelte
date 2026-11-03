@@ -19,7 +19,9 @@
 	/** Pointer travel (px) before a press on a thumbnail becomes a drag. */
 	const DRAG_THRESHOLD = 5;
 
-	let dir = $state<string | null>(null);
+	const dir = $derived(zine.photoDir);
+	/** Folder the current `photos` came from; scanning waits until the panel is opened. */
+	let scannedDir: string | null = null;
 	let photos = $state<Photo[]>([]);
 	let scanning = $state(false);
 	let error = $state("");
@@ -31,15 +33,23 @@
 	async function chooseDir() {
 		const picked = await open({ directory: true, multiple: false, defaultPath: dir ?? undefined });
 		if (typeof picked !== "string") return;
-		dir = picked;
-		await scan();
+		zine.photoDir = picked;
 	}
 
+	// Rescan when the folder changes (picked here, or from an opened/new project) and the panel is open.
+	$effect(() => {
+		if (zine.photoTableOpen && dir !== scannedDir) scan();
+	});
+
 	async function scan() {
-		if (!dir) return;
+		scannedDir = dir;
 		const gen = ++generation;
-		scanning = true;
 		error = "";
+		if (!dir) {
+			photos = [];
+			return;
+		}
+		scanning = true;
 		try {
 			const paths = await invoke<string[]>("list_images", { dir });
 			if (gen !== generation) return;

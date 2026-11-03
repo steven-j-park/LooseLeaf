@@ -8,6 +8,9 @@ use std::fs;
 pub struct Project {
     pub paper: String,
     pub pages: Vec<PageData>,
+    /// Folder last opened in the photo table; absent in older project files.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub photo_dir: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -108,7 +111,11 @@ mod tests {
                 })
                 .collect(),
         };
-        Project { paper: "a4".into(), pages: (0..PAGE_COUNT).map(|i| page(&i.to_string())).collect() }
+        Project {
+            paper: "a4".into(),
+            pages: (0..PAGE_COUNT).map(|i| page(&i.to_string())).collect(),
+            photo_dir: Some("/photos/trip".into()),
+        }
     }
 
     #[test]
@@ -119,7 +126,16 @@ mod tests {
         let loaded = load_project(path.clone()).unwrap();
         assert_eq!(loaded.paper, "a4");
         assert_eq!(loaded.pages[3].caption, "3");
+        assert_eq!(loaded.photo_dir.as_deref(), Some("/photos/trip"));
         let _ = fs::remove_file(path);
+    }
+
+    #[test]
+    fn loads_project_without_photo_dir() {
+        let mut json = serde_json::to_value(sample()).unwrap();
+        json.as_object_mut().unwrap().remove("photoDir");
+        let project: Project = serde_json::from_value(json).unwrap();
+        assert_eq!(project.photo_dir, None);
     }
 
     #[test]
