@@ -2,10 +2,10 @@
 	import { convertFileSrc, invoke } from "@tauri-apps/api/core";
 	import { open } from "@tauri-apps/plugin-dialog";
 	import { FolderOpen, RefreshCw, X } from "@lucide/svelte";
-	import { Button } from "$lib/components/ui/button";
-	import { dropTargetAt, photoDrag } from "$lib/photoDrag.svelte";
-	import { cn } from "$lib/utils";
-	import { zine } from "$lib/zine.svelte";
+	import { Button } from "#lib/components/ui/button/index.js";
+	import { dropTargetAt, photoDrag } from "#lib/photoDrag.svelte.js";
+	import { cn } from "#lib/utils.js";
+	import { zine } from "#lib/zine.svelte.js";
 
 	interface Photo {
 		path: string;

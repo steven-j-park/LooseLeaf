@@ -2,11 +2,11 @@
 	import { getCurrentWebview } from "@tauri-apps/api/webview";
 	import { isTauri } from "@tauri-apps/api/core";
 	import { onMount } from "svelte";
-	import { chooseImage, isImagePath } from "$lib/actions";
-	import { Button } from "$lib/components/ui/button";
-	import { dropTargetAt, photoDrag } from "$lib/photoDrag.svelte";
-	import { cn } from "$lib/utils";
-	import { ASPECTS, imageCount, isCover, views, zine, type CaptionSize } from "$lib/zine.svelte";
+	import { chooseImage, isImagePath } from "#lib/actions.js";
+	import { Button } from "#lib/components/ui/button/index.js";
+	import { dropTargetAt, photoDrag } from "#lib/photoDrag.svelte.js";
+	import { cn } from "#lib/utils.js";
+	import { ASPECTS, imageCount, isCover, views, zine, type CaptionSize } from "#lib/zine.svelte.js";
 
 	const view = $derived(views[zine.viewIndex]);
 	const ratio = $derived(zine.pageRatio * view.length);

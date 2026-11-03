@@ -1,6 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import { open, save } from "@tauri-apps/plugin-dialog";
-import { zine, type Project } from "$lib/zine.svelte";
+import { zine, type Project } from "#lib/zine.svelte.js";
 
 const IMAGE_EXTS = ["jpg", "jpeg", "png", "webp", "gif", "bmp", "tif", "tiff"];
 const PROJECT_FILTER = { name: "LooseLeaf project", extensions: ["looseleaf"] };
