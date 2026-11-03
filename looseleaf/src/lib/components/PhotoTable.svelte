@@ -193,8 +193,9 @@
 			<p class="mb-2 text-xs text-muted-foreground">
 				{photos.length} photo{photos.length === 1 ? "" : "s"} · drag onto a page, or click to add to the selected page
 			</p>
-			<!-- Rows are as tall as a column is wide, so landscape/square photos get a square cell and portrait ones a tall 1x2 cell. -->
-			<ul class="grid auto-rows-[calc((100cqw-0.5rem)/2)] grid-cols-2 gap-2">
+			<!-- Rows are 2/3 of a column's width, so landscape/square photos get a 3:2 cell and portrait ones a tall 1x2 cell.
+			     Images are letter/pillarboxed (object-contain) rather than cropped. -->
+			<ul class="grid auto-rows-[calc((100cqw-0.5rem)/3)] grid-cols-2 gap-2">
 				{#each photos as photo (photo.path)}
 					<li class={cn(photo.portrait && "row-span-2")}>
 						<button
@@ -214,7 +215,7 @@
 							onclick={() => onClick(photo)}
 						>
 							{#if photo.thumbUrl}
-								<img src={photo.thumbUrl} alt="" draggable="false" class="size-full object-cover" />
+								<img src={photo.thumbUrl} alt="" draggable="false" class="size-full object-contain" />
 							{:else}
 								<span class="truncate px-1 text-xs text-muted-foreground">
 									{photo.failed ? "Unreadable" : photo.name}
