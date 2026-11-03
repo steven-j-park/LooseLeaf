@@ -43,6 +43,8 @@ export const QR_SIZE = 0.36;
 export const QR_INSET = 0.05;
 /** White border around the code, in modules. */
 export const QR_QUIET = 4;
+/** Corner radius of the white block, in modules (inside the quiet zone); keep in sync with qr.rs. */
+export const QR_RADIUS = 2;
 
 /** One image position on a page, with its own framing. */
 export interface Slot {

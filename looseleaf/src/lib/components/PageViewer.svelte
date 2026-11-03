@@ -13,6 +13,7 @@
 		isCover,
 		QR_INSET,
 		QR_QUIET,
+		QR_RADIUS,
 		QR_SIZE,
 		views,
 		zine,
@@ -242,13 +243,14 @@
 						{#if index === BACK_COVER && zine.qrModules && page.qr.url.trim()}
 							{@const n = zine.qrModules.length + 2 * QR_QUIET}
 							<svg
-								class="pointer-events-none absolute bg-white"
+								class="pointer-events-none absolute"
 								style={qrStyle(page.qr.position)}
 								viewBox="0 0 {n} {n}"
 								shape-rendering="crispEdges"
 								role="img"
 								aria-label="QR code for {page.qr.url}"
 							>
+								<rect width={n} height={n} rx={QR_RADIUS} fill="white" />
 								<path d={qrPath(zine.qrModules)} fill="black" />
 							</svg>
 						{/if}
