@@ -1,12 +1,12 @@
 <script lang="ts">
-	import Header from "$lib/components/Header.svelte";
-	import PageNav from "$lib/components/PageNav.svelte";
-	import PageViewer from "$lib/components/PageViewer.svelte";
-	import PhotoTable from "$lib/components/PhotoTable.svelte";
-	import SettingsPane from "$lib/components/SettingsPane.svelte";
+	import Header from "#lib/components/Header.svelte";
+	import PageNav from "#lib/components/PageNav.svelte";
+	import PageViewer from "#lib/components/PageViewer.svelte";
+	import PhotoTable from "#lib/components/PhotoTable.svelte";
+	import SettingsPane from "#lib/components/SettingsPane.svelte";
 
 	import { invoke } from "@tauri-apps/api/core";
-	import { zine } from "$lib/zine.svelte";
+	import { zine } from "#lib/zine.svelte.js";
 
 	let viewer: PageViewer;
 

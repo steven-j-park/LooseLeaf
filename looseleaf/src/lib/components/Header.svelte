@@ -1,9 +1,9 @@
 <script lang="ts">
-	import { exportZine, openProject, saveProject } from "$lib/actions";
+	import { exportZine, openProject, saveProject } from "#lib/actions.js";
 	import { Download, FilePlus, FolderOpen, Images, Save } from "@lucide/svelte";
-	import { Button } from "$lib/components/ui/button";
-	import { Text } from "$lib/components/ui/text";
-	import { PAPER, zine, type Paper } from "$lib/zine.svelte";
+	import { Button } from "#lib/components/ui/button/index.js";
+	import { Text } from "#lib/components/ui/text/index.js";
+	import { PAPER, zine, type Paper } from "#lib/zine.svelte.js";
 
 	const papers = Object.keys(PAPER) as Paper[];
 </script>

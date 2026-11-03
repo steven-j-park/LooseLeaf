@@ -1,8 +1,8 @@
 <script lang="ts">
 	import { PanelLeftClose, PanelLeftOpen } from "@lucide/svelte";
-	import { Button } from "$lib/components/ui/button";
-	import { cn } from "$lib/utils";
-	import { imageCount, views, zine } from "$lib/zine.svelte";
+	import { Button } from "#lib/components/ui/button/index.js";
+	import { cn } from "#lib/utils.js";
+	import { imageCount, views, zine } from "#lib/zine.svelte.js";
 </script>
 
 <nav

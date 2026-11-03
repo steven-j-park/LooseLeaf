@@ -8,8 +8,8 @@
 		AlignVerticalJustifyStart,
 		Move,
 	} from "@lucide/svelte";
-	import { Button } from "$lib/components/ui/button";
-	import { H_POS, V_POS, zine, type CaptionSize, type HAlign, type VAlign } from "$lib/zine.svelte";
+	import { Button } from "#lib/components/ui/button/index.js";
+	import { H_POS, V_POS, zine, type CaptionSize, type HAlign, type VAlign } from "#lib/zine.svelte.js";
 	import CaptionInput from "./CaptionInput.svelte";
 	import SlotOptions from "./SlotOptions.svelte";
 

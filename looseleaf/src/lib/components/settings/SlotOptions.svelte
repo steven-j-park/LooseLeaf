@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { ImagePlus } from "@lucide/svelte";
-	import { Button } from "$lib/components/ui/button";
-	import { ASPECTS, zine, type Aspect } from "$lib/zine.svelte";
+	import { Button } from "#lib/components/ui/button/index.js";
+	import { ASPECTS, zine, type Aspect } from "#lib/zine.svelte.js";
 
 	let {
 		index,
