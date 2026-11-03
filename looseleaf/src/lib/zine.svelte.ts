@@ -29,6 +29,21 @@ export interface CaptionStyle {
 	y: number;
 }
 
+export type QrPosition = "top-left" | "top-right" | "center" | "bottom-left" | "bottom-right";
+
+/** QR code printed on the back cover; empty url = none. */
+export interface QrCode {
+	url: string;
+	position: QrPosition;
+}
+
+/** QR block side (code + quiet zone) as a fraction of page width; keep in sync with qr.rs. */
+export const QR_SIZE = 0.36;
+/** Corner inset as a fraction of page width; keep in sync with qr.rs. */
+export const QR_INSET = 0.05;
+/** White border around the code, in modules. */
+export const QR_QUIET = 4;
+
 /** One image position on a page, with its own framing. */
 export interface Slot {
 	/** Original file on disk (null = empty slot). This is what gets saved and exported. */
@@ -54,6 +69,8 @@ export interface Page {
 	subCaption: string;
 	author: string;
 	captionStyle: CaptionStyle;
+	/** Back cover only. */
+	qr: QrCode;
 }
 
 const PAGE_COUNT = 8;
@@ -77,6 +94,7 @@ function blankPage(index: number): Page {
 		subCaption: "",
 		author: "",
 		captionStyle: { h: "center", v: "bottom", size: "md", color: "white", custom: false, x: 50, y: 85 },
+		qr: { url: "", position: "bottom-right" },
 	};
 }
 
@@ -96,6 +114,7 @@ export interface Project {
 		subCaption: string;
 		author: string;
 		captionStyle: CaptionStyle;
+		qr: QrCode;
 		images: Pick<Slot, "path" | "mode" | "offsetX" | "offsetY" | "aspect">[];
 	}[];
 	/** Folder shown in the photo table. */
@@ -129,6 +148,8 @@ export function isCover(pageIndex: number): boolean {
 	return maxImages(pageIndex) === 1;
 }
 
+export const BACK_COVER = PAGE_COUNT - 1;
+
 export const H_POS: Record<HAlign, number> = { left: 12, center: 50, right: 88 };
 export const V_POS: Record<VAlign, number> = { top: 10, middle: 50, bottom: 90 };
 
@@ -148,6 +169,9 @@ class Zine {
 	projectPath = $state<string | null>(null);
 	/** Last message from a file operation, shown in the header. */
 	status = $state("");
+	/** Back-cover QR modules (no quiet zone), encoded by the backend; null when there's no link. */
+	qrModules = $state<boolean[][] | null>(null);
+	private qrRequest = 0;
 
 	pageRatio = $derived(PAPER[this.paper].pageRatio);
 
@@ -160,6 +184,29 @@ class Zine {
 
 	updateCaptionStyle(index: number, patch: Partial<CaptionStyle>) {
 		Object.assign(this.pages[index].captionStyle, patch);
+	}
+
+	updateQr(patch: Partial<QrCode>) {
+		const qr = this.pages[BACK_COVER].qr;
+		const urlChanged = patch.url !== undefined && patch.url !== qr.url;
+		Object.assign(qr, patch);
+		if (urlChanged) this.refreshQr();
+	}
+
+	/** Re-encode the back-cover link with the same encoder the export uses. */
+	private async refreshQr() {
+		const request = ++this.qrRequest;
+		const text = this.pages[BACK_COVER].qr.url.trim();
+		let modules: boolean[][] | null = null;
+		if (text) {
+			try {
+				modules = await invoke<boolean[][]>("qr_matrix", { text });
+			} catch (e) {
+				this.status = String(e);
+			}
+		}
+		// Ignore replies that arrive after a newer edit.
+		if (request === this.qrRequest) this.qrModules = modules;
 	}
 
 	updateSlot(index: number, slot: number, patch: Partial<Slot>) {
@@ -210,6 +257,7 @@ class Zine {
 		this.paper = "letter";
 		this.photoDir = null;
 		this.projectPath = null;
+		this.refreshQr();
 	}
 
 	/** The persisted subset of the state, in the shape the backend saves and exports. */
@@ -222,6 +270,7 @@ class Zine {
 				subCaption: p.subCaption,
 				author: p.author,
 				captionStyle: { ...p.captionStyle },
+				qr: { ...p.qr },
 				images: p.images.map((s) => ({
 					path: s.path,
 					mode: s.mode,
@@ -241,6 +290,7 @@ class Zine {
 			page.subCaption = data.subCaption ?? "";
 			page.author = data.author ?? "";
 			page.captionStyle = { ...page.captionStyle, ...data.captionStyle };
+			page.qr = { ...page.qr, ...data.qr };
 			page.images = data.images.map((s) => ({ ...blankSlot(), ...s })) as [Slot, Slot];
 			return page;
 		});
@@ -250,6 +300,7 @@ class Zine {
 		this.paper = project.paper;
 		this.photoDir = project.photoDir ?? null;
 		this.selectedIndex = 0;
+		this.refreshQr();
 
 		const failed: string[] = [];
 		await Promise.all(

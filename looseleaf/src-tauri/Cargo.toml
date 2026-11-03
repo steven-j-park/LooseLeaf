@@ -25,6 +25,7 @@ tauri-plugin-dialog = "2.8.2"
 image = "0.25"
 ab_glyph = "0.2.32"
 pdf-writer = "0.15.0"
+qrcode = { version = "0.14.1", default-features = false }
 
 
 # Dependencies (image decoding/resizing, PDF) are far too slow unoptimized; keep app code debuggable.
@@ -38,3 +39,6 @@ lto = true
 opt-level = 3
 panic = "abort"
 strip = true
+
+[dev-dependencies]
+rqrr = "0.11.0"

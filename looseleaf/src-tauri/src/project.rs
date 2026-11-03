@@ -23,6 +23,24 @@ pub struct PageData {
     pub author: String,
     pub caption_style: CaptionStyle,
     pub images: Vec<SlotData>,
+    /// Back cover only; absent in older project files.
+    #[serde(default)]
+    pub qr: QrData,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct QrData {
+    /// Text to encode (usually a link). Empty = no QR code.
+    pub url: String,
+    /// "top-left" | "top-right" | "bottom-left" | "bottom-right" | "center"
+    pub position: String,
+}
+
+impl Default for QrData {
+    fn default() -> Self {
+        Self { url: String::new(), position: "bottom-right".into() }
+    }
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -110,6 +128,7 @@ mod tests {
                     aspect: "auto".into(),
                 })
                 .collect(),
+            qr: QrData::default(),
         };
         Project {
             paper: "a4".into(),
@@ -136,6 +155,15 @@ mod tests {
         json.as_object_mut().unwrap().remove("photoDir");
         let project: Project = serde_json::from_value(json).unwrap();
         assert_eq!(project.photo_dir, None);
+    }
+
+    #[test]
+    fn loads_pages_without_qr() {
+        let mut json = serde_json::to_value(sample()).unwrap();
+        json["pages"][7].as_object_mut().unwrap().remove("qr");
+        let project: Project = serde_json::from_value(json).unwrap();
+        assert_eq!(project.pages[7].qr.url, "");
+        assert_eq!(project.pages[7].qr.position, "bottom-right");
     }
 
     #[test]
