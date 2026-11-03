@@ -107,6 +107,36 @@ pub async fn prepare_image(app: tauri::AppHandle, path: String) -> Result<ImageI
         .map_err(|e| e.to_string())?
 }
 
+fn is_jpeg(path: &Path) -> bool {
+    let hidden = path
+        .file_name()
+        .and_then(|n| n.to_str())
+        .is_none_or(|n| n.starts_with('.'));
+    let ext = path.extension().and_then(|e| e.to_str()).map(str::to_ascii_lowercase);
+    !hidden && matches!(ext.as_deref(), Some("jpg" | "jpeg"))
+}
+
+/// JPEG files directly inside `dir` (not recursive), sorted by name. Hidden files such as
+/// macOS `._` resource forks are skipped.
+fn list_jpegs(dir: &Path) -> Result<Vec<String>, String> {
+    let entries = fs::read_dir(dir).map_err(|e| format!("could not read {}: {e}", dir.display()))?;
+    let mut paths: Vec<PathBuf> = entries
+        .filter_map(|e| e.ok())
+        .filter(|e| e.file_type().is_ok_and(|t| t.is_file()))
+        .map(|e| e.path())
+        .filter(|p| is_jpeg(p))
+        .collect();
+    paths.sort_by_key(|p| p.file_name().map(|n| n.to_string_lossy().to_lowercase()));
+    Ok(paths.into_iter().map(|p| p.to_string_lossy().into_owned()).collect())
+}
+
+#[tauri::command]
+pub async fn list_images(dir: String) -> Result<Vec<String>, String> {
+    tauri::async_runtime::spawn_blocking(move || list_jpegs(Path::new(&dir)))
+        .await
+        .map_err(|e| e.to_string())?
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -128,6 +158,23 @@ mod tests {
 
         let b = prepare(&src, &dir.join("cache")).unwrap();
         assert_eq!((b.width, b.height), (3000, 2000));
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn lists_only_visible_jpegs_sorted() {
+        let dir = std::env::temp_dir().join("looseleaf_list_test");
+        let _ = fs::remove_dir_all(&dir);
+        fs::create_dir_all(dir.join("sub.jpg")).unwrap();
+        for name in ["b.JPG", "a.jpeg", "c.png", "._a.jpeg", "notes.txt"] {
+            fs::write(dir.join(name), b"").unwrap();
+        }
+        let names: Vec<String> = list_jpegs(&dir)
+            .unwrap()
+            .iter()
+            .map(|p| Path::new(p).file_name().unwrap().to_string_lossy().into_owned())
+            .collect();
+        assert_eq!(names, ["a.jpeg", "b.JPG"]);
         let _ = fs::remove_dir_all(&dir);
     }
 }

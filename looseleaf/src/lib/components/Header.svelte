@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { exportZine, openProject, saveProject } from "$lib/actions";
-	import { Download, FilePlus, FolderOpen, Save } from "@lucide/svelte";
+	import { Download, FilePlus, FolderOpen, Images, Save } from "@lucide/svelte";
 	import { Button } from "$lib/components/ui/button";
 	import { Text } from "$lib/components/ui/text";
 	import { PAPER, zine, type Paper } from "$lib/zine.svelte";
@@ -44,5 +44,14 @@
 			onclick={() => saveProject()}><Save /> Save</Button
 		>
 		<Button variant="outline" size="sm" class="bg-chart-5" onclick={() => exportZine()}><Download /> Export as PDF</Button>
+		<Button
+			variant={zine.photoTableOpen ? "default" : "outline"}
+			size="icon"
+			class={zine.photoTableOpen ? "" : "bg-background"}
+			title="Photo table"
+			aria-label="Photo table"
+			aria-pressed={zine.photoTableOpen}
+			onclick={() => (zine.photoTableOpen = !zine.photoTableOpen)}><Images /></Button
+		>
 	</div>
 </header>

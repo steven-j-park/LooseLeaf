@@ -138,6 +138,7 @@ class Zine {
 	pages = $state<Page[]>(Array.from({ length: PAGE_COUNT }, (_, i) => blankPage(i)));
 	selectedIndex = $state(0);
 	navExpanded = $state(true);
+	photoTableOpen = $state(false);
 	paper = $state<Paper>("letter");
 	/** Where the project is saved, once it has been saved or opened. */
 	projectPath = $state<string | null>(null);

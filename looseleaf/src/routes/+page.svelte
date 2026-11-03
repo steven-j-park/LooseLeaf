@@ -2,6 +2,7 @@
 	import Header from "$lib/components/Header.svelte";
 	import PageNav from "$lib/components/PageNav.svelte";
 	import PageViewer from "$lib/components/PageViewer.svelte";
+	import PhotoTable from "$lib/components/PhotoTable.svelte";
 	import SettingsPane from "$lib/components/SettingsPane.svelte";
 
 	import { invoke } from "@tauri-apps/api/core";
@@ -24,6 +25,9 @@
 <div class="grid h-screen grid-cols-[auto_1fr] grid-rows-[auto_1fr_auto]">
 	<div class="col-span-2"><Header /></div>
 	<PageNav />
-	<PageViewer bind:this={viewer} />
+	<div class="relative grid min-h-0 min-w-0 grid-cols-[minmax(0,1fr)] grid-rows-[minmax(0,1fr)] overflow-hidden">
+		<PageViewer bind:this={viewer} />
+		<PhotoTable />
+	</div>
 	<div class="col-span-2"><SettingsPane onChooseFile={(page, slot) => viewer.chooseFile(page, slot)} /></div>
 </div>
