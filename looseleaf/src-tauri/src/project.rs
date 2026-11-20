@@ -8,6 +8,9 @@ use std::fs;
 pub struct Project {
     pub paper: String,
     pub pages: Vec<PageData>,
+    /// Folder last opened in the photo table; absent in older project files.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub photo_dir: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -20,6 +23,24 @@ pub struct PageData {
     pub author: String,
     pub caption_style: CaptionStyle,
     pub images: Vec<SlotData>,
+    /// Back cover only; absent in older project files.
+    #[serde(default)]
+    pub qr: QrData,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct QrData {
+    /// Text to encode (usually a link). Empty = no QR code.
+    pub url: String,
+    /// "top-left" | "top-right" | "bottom-left" | "bottom-right" | "center"
+    pub position: String,
+}
+
+impl Default for QrData {
+    fn default() -> Self {
+        Self { url: String::new(), position: "bottom-right".into() }
+    }
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -107,8 +128,13 @@ mod tests {
                     aspect: "auto".into(),
                 })
                 .collect(),
+            qr: QrData::default(),
         };
-        Project { paper: "a4".into(), pages: (0..PAGE_COUNT).map(|i| page(&i.to_string())).collect() }
+        Project {
+            paper: "a4".into(),
+            pages: (0..PAGE_COUNT).map(|i| page(&i.to_string())).collect(),
+            photo_dir: Some("/photos/trip".into()),
+        }
     }
 
     #[test]
@@ -119,7 +145,25 @@ mod tests {
         let loaded = load_project(path.clone()).unwrap();
         assert_eq!(loaded.paper, "a4");
         assert_eq!(loaded.pages[3].caption, "3");
+        assert_eq!(loaded.photo_dir.as_deref(), Some("/photos/trip"));
         let _ = fs::remove_file(path);
+    }
+
+    #[test]
+    fn loads_project_without_photo_dir() {
+        let mut json = serde_json::to_value(sample()).unwrap();
+        json.as_object_mut().unwrap().remove("photoDir");
+        let project: Project = serde_json::from_value(json).unwrap();
+        assert_eq!(project.photo_dir, None);
+    }
+
+    #[test]
+    fn loads_pages_without_qr() {
+        let mut json = serde_json::to_value(sample()).unwrap();
+        json["pages"][7].as_object_mut().unwrap().remove("qr");
+        let project: Project = serde_json::from_value(json).unwrap();
+        assert_eq!(project.pages[7].qr.url, "");
+        assert_eq!(project.pages[7].qr.position, "bottom-right");
     }
 
     #[test]

@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { ArrowUpDown } from "@lucide/svelte";
-	import { Button } from "$lib/components/ui/button";
-	import { imageCount, zine } from "$lib/zine.svelte";
+	import { Button } from "#lib/components/ui/button/index.js";
+	import { imageCount, zine } from "#lib/zine.svelte.js";
 	import SlotOptions from "./SlotOptions.svelte";
 
 	/** Settings for an inner page: up to two stacked images. (Inner-page captions are not designed yet.) */

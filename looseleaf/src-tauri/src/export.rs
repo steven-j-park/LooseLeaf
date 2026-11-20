@@ -5,6 +5,7 @@
 
 use crate::images::load_oriented;
 use crate::project::{CaptionStyle, PageData, Project, SlotData};
+use crate::qr::draw_qr;
 use ab_glyph::{Font, FontRef, PxScale, ScaleFont, point};
 use image::{
     DynamicImage, ExtendedColorType, Rgba, RgbaImage,
@@ -290,6 +291,9 @@ fn render_page(page: &PageData, index: usize, w: u32, h: u32, fonts: &Fonts) -> 
     if index == 0 || index == 7 {
         draw_caption(&mut canvas, fonts, page, w as f64, h as f64);
     }
+    if index == 7 {
+        draw_qr(&mut canvas, &page.qr, w as f64, h as f64)?;
+    }
     Ok(canvas)
 }
 
@@ -402,7 +406,7 @@ pub async fn export_zine(project: Project, path: String) -> Result<(), String> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::project::PAGE_COUNT;
+    use crate::project::{PAGE_COUNT, QrData};
     use image::{Rgb, RgbImage};
 
     fn slot(path: Option<String>, mode: &str, aspect: &str) -> SlotData {
@@ -424,6 +428,7 @@ mod tests {
                 y: 50.0,
             },
             images,
+            qr: QrData::default(),
         }
     }
 
@@ -478,7 +483,7 @@ mod tests {
         let pages: Vec<PageData> = (0..PAGE_COUNT)
             .map(|_| page(vec![slot(Some(p.clone()), "fill", "auto"), slot(Some(p.clone()), "fit", "auto")], "Title"))
             .collect();
-        let project = Project { paper: "letter".into(), pages };
+        let project = Project { paper: "letter".into(), pages, photo_dir: None };
 
         let t = Instant::now();
         let sheet = render_sheet(&project).unwrap();
@@ -548,7 +553,7 @@ mod tests {
             (0..PAGE_COUNT).map(|_| page(vec![slot(None, "fit", "auto"), slot(None, "fit", "auto")], "")).collect();
         pages[0] = page(vec![slot(Some(p.clone()), "fill", "auto"), slot(None, "fit", "auto")], "Hello");
         pages[1] = page(vec![slot(Some(p.clone()), "fit", "auto"), slot(Some(p), "fill", "3:2")], "");
-        let project = Project { paper: "letter".into(), pages };
+        let project = Project { paper: "letter".into(), pages, photo_dir: None };
 
         let sheet = render_sheet(&project).unwrap();
         assert_eq!((sheet.width(), sheet.height()), (3300, 2550));

@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { isCover, views, zine } from "$lib/zine.svelte";
+	import { isCover, views, zine } from "#lib/zine.svelte.js";
 	import MiniOptions from "./settings/MiniOptions.svelte";
 	import Options from "./settings/Options.svelte";
 
